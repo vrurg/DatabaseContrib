@@ -1,0 +1,3 @@
+# ---+ Extensions
+# ---++ DatabaseContrib
+1;
