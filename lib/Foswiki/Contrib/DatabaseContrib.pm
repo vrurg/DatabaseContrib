@@ -1,17 +1,4 @@
 # See bottom of file for default license and copyright information
-
-=begin TML
-
----+ package Foswiki::Contrib::DatabaseContrib
-
-This is a stub module for a new contrib. Customise this module as
-required.  It is typically not used by the Contrib.  Foswiki does not load it
-automatically.  It is used by the Extensions Installer to detect the currently
-installed version of the Contrib.
-
-=cut
-
-# change the package name!!!
 package Foswiki::Contrib::DatabaseContrib;
 
 # Always use strict to enforce variable scoping
