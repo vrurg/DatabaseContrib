@@ -9,6 +9,129 @@ One line description, required for extensions repository catalog.
 
 %TOC%
 
+---++ Summary of Contents
+
+This contrib provides subroutines that come in handy when accessing a SQL database.
+
+   * =db_connect= connects to a SQL database
+   * =db_connected= verifies that a connection exists for a database
+   * =db_disconnect= disconnects from all databases
+   * =db_allowed= tests for additional access permissions
+
+This contrib is used among others, by Foswiki:Plugins.DBIQueryPlugin. The hope is that we can consolidate the many different database connection schemes currently in use into this single contrib.
+
+---++ Detailed Documentation
+
+This plugin has its origins in Foswiki:Plugins.DBIQueryPlugin. Additional capabilities have been migrated from other database connection mechanisms deployed in various TWiki plugins.
+
+This plugin uses the database independent access methods in DBI to facilitate access to the SQL database. In the following =$dbh= refers to the database handle abstraction of DBI.
+
+---+++ =db_connect ( $dbname ) -> ( $dbh )=
+
+Connects to the database indicated by =$dbname=. The database can then be queried or updated.
+
+---+++ =db_connected ( $dbname ) -> ( 0|1 )=
+
+Finds the database handle for the indicated database.
+
+---+++ =db_disconnect ( )=
+
+Disconnects from all databases that have been connected to in this session.
+
+---+++ =db_allowed ( $dbname, $topic )=
+
+Verifies that the current user is allowed to perform queries that could change the database destructively. (See [[#AccessControl][Access control]] below).
+
+#DatabaseConfig
+---++ Database Definition
+
+The databases that one may connect to are defined through the =configure= script. The connection information is inserted in the =DatabaseContrib= section.
+
+<blockquote style="background-color:#f5f5f5">
+Example:
+<pre>
+   message_board => {
+       user => 'dbuser',
+       password => 'dbpasswd',
+       driver => 'mysql',
+       database => 'message_board',
+       codepage => 'utf8',
+       allow_do => {
+           default => [qw(AdminGroup)],
+           'Sandbox.CommonDiscussion' => [qw(Guest)],
+       },
+       host => 'localhost',
+       init => 'SET ...',
+   }
+</pre>
+</blockquote>
+
+This example defines a database =message_board= and the necessary information to access this database. Additional databases can be added, as a comma-separated list of Perl hash refs. 
+
+The following parameters can be used to specify a database. The first level key are the database names used in the above functions. Each database has its own set of parameters defined in the hash.
+
+|*Key*|*Description*|*Default*|*Required*|
+|=database=|Database name on the server.|_none_|required|
+|=user=|Default database account name.|_none_|optional|
+|=password=|Default database account password.|_none_|optional|
+|=driver=|DBI driver used to access the server, (such as =mysql=, =sqlite=, =oracle=).<sup>[[#DriverNote][1]]</sup>|_none_|required|
+|=dsn=|Complete dsn string to be used when creating the connection. See your DBD driver documentation.%T% _With this key defined both =database= and =driver= keys are ignored._|_none_|optional|
+|=init=|Initialization command to be sent to the database server just after the connection is initiated.|_none_|optional|
+|=host=|DB server hostname.|=localhost=|optional|
+|=codepage=|Client-side codepage of this connection.<sup>[[#CodePageNote][2]]</sup>|_none_|optional|
+|=usermap=|Hash ref mapping Foswiki users or groups to database accounts. See [[#AccessControl][Access control]] below.|_none_|optional|
+|=allow_do=|Additional topic-level access control support (see [[#AccessControl][Access control]] below).|default => [qw(!AdminGroup)]|optional|
+
+#DriverNote
+<sup>1</sup> Only !MySQL support has been tested.
+#CodePageNote
+<sup>2</sup> Only !MySQL support provided for this feature. Support for other servers is not implemented yet.
+
+#AccessControl
+---++ Access Control
+
+The contrib relies on Foswiki for authentication and basic access control, and the database server for enforcing security. 
+
+Database server-side access control works through mapping Foswiki users into database server user accounts by means of the =usermap= key in the configuration setting (see [[#DatabaseConfig][Database definition]] above).
+
+   1. Check if Foswiki user has an enty in =usermap=.
+   1. Check if Foswiki user is a member of a group that has an entry in =usermap=.
+   1. Use =user= and =password= keys of the [[#Config][database definition]].
+   1. If a user was found, connect to the database.
+
+Additional controls are possible at a topic level, if needed.
+The configuration key =allow_do= maps individual topics into lists of users or groups with access permission for a query executed from that topic.
+The key =default= is used, if a matching key cannot be found for the given topic.
+
+In the example above, members of the =AdminGroup= may perform queries onany topic; =Guest= is allowed only for topic =Sandbox.CommonDiscussion=.
+
+---++ Settings
+
+Settings are stored as preferences variables. To reference a setting write ==%<nop>&lt;plugin&gt;_&lt;setting&gt;%==, e.g. ==%<nop>DATABASECONTRIB_DEBUG%==
+
+   * One line description:
+      * Set SHORTDESCRIPTION = Provides subroutines useful in writing plugins that access a SQL database
+
+---++ Installation Instructions
+
+__Note:__ You do not need to install anything on the browser to use this module. The following instructions are for the administrator who installs the module on the Foswiki server.
+
+   * For an __automated installation__, run the [[%SCRIPTURL{configure}%][configure]] script and follow "Find More Extensions" in the in the __Extensions__ section.
+
+   * Or, follow these __manual installation__ steps:
+      * Download the ZIP file from the Plugins home (see below).
+      * Unzip ==%TOPIC%.zip== in your twiki installation directory. Content:
+        | *File:* | *Description:* |
+        | ==data/Foswiki/%TOPIC%.txt== | Contrib topic |
+        | ==lib/Foswiki/Contrib/%TOPIC%.pm== | Contrib Perl module |
+        | ==lib/Foswiki/Contrib/%TOPIC%/Config.spec== | Configuration specification |
+        | ==lib/TWiki/Configure/Types/TEXT.pm== | Perl module supporting text areas in =configure= script |
+      * Set the ownership of the extracted directories and files to the webserver user.
+
+   * Contrib __configuration and testing__:
+      * Verify access and ownership settings for the new scripts.
+      * Edit your .htaccess file to require a valid user for the =savesection= script (if needed).
+
 ---++ Installation
 %$INSTALL_INSTRUCTIONS%
 
