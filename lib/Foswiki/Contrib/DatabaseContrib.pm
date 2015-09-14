@@ -11,7 +11,7 @@ use DBI;
 use CGI qw(:html2);
 use Carp qw(longmess);
 
-our ( $initialized % dbi_connections $dieOnFailure);
+my ( $initialized, %dbi_connections );
 
 # $VERSION is referred to by Foswiki, and is the only global variable that
 # *must* exist in this package. For best compatibility, the simple quoted decimal
@@ -74,15 +74,13 @@ sub init {
     }
     %dbi_connections = %$connections;
 
-    $dieOnFailure = 0;
-
     # Contrib correctly initialized
     return 1;
 }
 
 sub failure {
     my $msg = shift;
-    if ($dieOnFailure) {
+    if ($Foswiki::cfg{Contrib}{DatabaseContrib}{dieOnFailure}) {
         die $msg;
     }
     else {

@@ -31,5 +31,9 @@ $Foswiki::cfg{Extensions}{DatabaseContrib}{connections} = {
         # host => 'localhost',
     },
 };
+
+# **BOOLEAN LABEL="Die on failures" EXPERT**
+# Die if an internal error took place. Useful for testing purposes mostly.
+$Foswiki::cfg{Extensions}{DatabaseContrib}{dieOnFailure} = 0;
 1;
 # vim: ft=perl et ts=4
