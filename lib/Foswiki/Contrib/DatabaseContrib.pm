@@ -80,7 +80,7 @@ sub init {
 
 sub failure {
     my $msg = shift;
-    if ($Foswiki::cfg{Contrib}{DatabaseContrib}{dieOnFailure}) {
+    if ( $Foswiki::cfg{Contrib}{DatabaseContrib}{dieOnFailure} ) {
         die $msg;
     }
     else {
