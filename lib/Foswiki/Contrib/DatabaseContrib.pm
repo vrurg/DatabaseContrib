@@ -1,4 +1,5 @@
 # See bottom of file for default license and copyright information
+use v5.16;
 package Foswiki::Contrib::DatabaseContrib;
 
 # Always use strict to enforce variable scoping
@@ -53,7 +54,7 @@ use Exporter;
 our ( @ISA, @EXPORT );
 @ISA = qw(Exporter);
 
-@EXPORT = qw( db_connect db_disconnect db_connected db_allowed );
+@EXPORT = qw( db_connect db_disconnect db_connected access_allowed db_allowed );
 
 sub warning {
     return Foswiki::Func::writeWarning(@_);
@@ -89,10 +90,7 @@ sub failure {
 }
 
 sub db_connected {
-    unless ($initialized) {
-        init;
-        $initialized = 1;
-    }
+    return 0 unless $initialized;
 
     my ($conname) = @_;
 
@@ -115,51 +113,83 @@ sub db_set_codepage {
     }
 }
 
-sub find_allowed {
-    my $allow = shift;
+# Finds mapping of a user in a list of users or groups.
+# Returns matched entry from $allow_map list
+sub find_mapping {
+    my ( $mappings, $user ) = @_;
 
-    my $curUser = Foswiki::Func::getWikiUserName();
+    $user = Foswiki::Func::getWikiUserName($user ? $user : ());
     my $found   = 0;
-    my $allowed;
-    foreach my $entity (@$allow) {
-        $allowed = $entity;
+    my $match;
+    foreach my $entity (@$mappings) {
+        $match = $entity;
 
-        # Checking for access of $curUser within $entity
+        # Checking for access of $user within $entity
         if ( Foswiki::Func::isGroup($entity) ) {
 
             # $entity is a group
             $found =
-              Foswiki::Func::isGroupMember( $entity, $curUser,
+              Foswiki::Func::isGroupMember( $entity, $user,
                 { expand => 1 } );
         }
         else {
             # FIXME Potentially incorrect approach within Foswiki API.
-            $entity =
-              Foswiki::Func::userToWikiName(
-                Foswiki::Func::wikiToUserName($entity), 0 );
-            $found = ( $curUser eq $entity );
+            $entity = Foswiki::Func::getWikiUserName($entity);
+            $found = ( $user eq $entity );
         }
         last if $found;
     }
-    return $allowed if $found;
+    return $match if $found;
     return;
 }
 
-sub db_allowed {
-    my ( $conname, $section ) = @_;
+# $conname - connection name from the configutation
+# $section – page we're checking access for in form Web.Topic
+# $access_type - one of the allow_* keys.
+my %map_inclusions = (
+    allow_query => 'allow_do',
+);
+sub access_allowed {
+    my ( $conname, $section, $access_type, $user ) = @_;
+
+    unless (defined $dbi_connections{$conname}) {
+        return 0 if failure "No connection $conname in the configuration";
+    }
+
     my $connection = $dbi_connections{$conname};
 
-    $section = "default"
-      unless defined( $connection->{allow_do} )
-      && defined( $connection->{allow_do}{$section} );
-    my $allow =
-         defined( $connection->{allow_do} )
-      && defined( $connection->{allow_do}{$section} )
-      && ref( $connection->{allow_do}{$section} ) eq 'ARRAY'
-      ? $connection->{allow_do}{$section}
-      : [];
-    my $allowed = find_allowed($allow);
-    return defined $allowed;
+    # Defines map priorities. Thus, no point to specify additional
+    # allow_query access right if allow_do has been defined for a topic
+    # already.
+
+    # By default we deny all.
+    return 0 unless defined $connection->{$access_type};
+
+    $user = Foswiki::Func::getWikiUserName() unless defined $user;
+
+    my $final_section = defined( $connection->{$access_type}{$section} ) ? $section : "default";
+    my $allow_map =
+         defined( $connection->{$access_type}{$final_section} )
+         ? (ref( $connection->{$access_type}{$final_section} ) eq 'ARRAY'
+             ? $connection->{$access_type}{$final_section}
+             : [ ref($connection->{$access_type}{$final_section})
+                     ? ()
+                     : $connection->{$access_type}{$final_section} ])
+         : [];
+    my $match = find_mapping($allow_map, $user);
+    if (!defined($match) && defined($map_inclusions{$access_type})) {
+        # Check for higher level access map if feasible.
+        return access_allowed($conname, $section, $map_inclusions{$access_type}, $user);
+    }
+    return defined $match;
+}
+
+# db_allowed is deprecated and kept for compatibility matters only.
+sub db_allowed
+{
+    my ($conname, $section) = @_;
+
+    return access_allowed($conname, $section, 'allow_do');
 }
 
 sub db_connect {
@@ -169,6 +199,9 @@ sub db_connect {
     }
 
     my $conname         = shift;
+    unless (exists $dbi_connections{$conname}) {
+        return if failure "No connection `$conname' defined in the cofiguration";
+    }
     my $connection      = $dbi_connections{$conname};
     my @required_fields = qw(database driver);
 
@@ -176,8 +209,7 @@ sub db_connect {
         foreach my $field (@required_fields) {
             unless ( defined $connection->{$field} ) {
                 return
-                  if failure
-"Required field $field is not defined for database connection $conname.\n";
+                  if failure "Required field $field is not defined for database connection $conname.\n";
             }
         }
     }
@@ -185,20 +217,27 @@ sub db_connect {
     my ( $dbuser, $dbpass ) =
       ( $connection->{user} || "", $connection->{password} || "" );
 
+    # $connection->{user} may be undef for cases where connection doesn't
+    # require username but general allowance of access to the DB is granted
+    # to all Wiki users.
+    my $access_allowed = exists $connection->{user};
+
     if ( defined( $connection->{usermap} ) ) {
+        # Individual mappings are checked first when it's about user->dbuser map.
         my @maps =
           sort { ( $a =~ /Group$/ ) <=> ( $b =~ /Group$/ ) }
           keys %{ $connection->{usermap} };
 
-        my $allowed = find_allowed( \@maps );
-        if ($allowed) {
-            $dbuser = $connection->{usermap}{$allowed}{user};
-            $dbpass = $connection->{usermap}{$allowed}{password};
+        my $usermap_key = find_mapping( \@maps );
+        if ($usermap_key) {
+            $dbuser = $connection->{usermap}{$usermap_key}{user};
+            $dbpass = $connection->{usermap}{$usermap_key}{password};
+            $access_allowed = 1;
         }
     }
 
-    unless ($dbuser) {
-        return if failure "User is not allowed to connect to database";
+    unless ($access_allowed) {
+        return if failure "User is not allowed to use database connection $conname";
     }
 
 # CONNECTING TO $conname, ", (defined $connection->{dbh} ? $connection->{dbh} : "*undef*"), ", ", (defined $dbi_connections{$conname}{dbh} ? $dbi_connections{$conname}{dbh} : "*undef*"), "\n";
