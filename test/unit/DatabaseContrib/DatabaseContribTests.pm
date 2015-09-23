@@ -203,7 +203,7 @@ sub test_permissions {
             foreach my $test_pair ( @{ $check_pairs{$bunch}{$access_type} } ) {
                 if ( $bunch eq 'valid' ) {
                     $this->assert(
-                        access_allowed(
+                        db_access_allowed(
                             'message_board', $test_pair->[1],
                             $access_type,    $test_pair->[0]
                         ),
@@ -213,7 +213,7 @@ sub test_permissions {
                 }
                 else {
                     $this->assert(
-                        !access_allowed(
+                        !db_access_allowed(
                             'message_board', $test_pair->[1],
                             $access_type,    $test_pair->[0]
                         ),

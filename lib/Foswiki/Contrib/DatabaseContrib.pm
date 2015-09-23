@@ -53,11 +53,14 @@ our $SHORTDESCRIPTION =
 
 use Exporter;
 our ( @ISA, @EXPORT );
-@ISA = qw(Exporter);
+@ISA = qw( Exporter );
 
-@EXPORT = qw( db_connect db_disconnect db_connected access_allowed db_allowed );
+@EXPORT =
+  qw( db_connect db_disconnect db_connected db_access_allowed db_allowed );
 
-sub warning {
+&init;
+
+sub warning (@) {
     return Foswiki::Func::writeWarning(@_);
 }
 
@@ -65,7 +68,7 @@ sub init {
 
     # check for Plugins.pm versions
     if ( $Foswiki::Plugins::VERSION < 0.77 ) {
-        warning("Version mismatch between DatabaseContrib.pm and Plugins.pm");
+        warning "Version mismatch between DatabaseContrib.pm and Plugins.pm";
         return 0;
     }
 
@@ -80,7 +83,7 @@ sub init {
     return 1;
 }
 
-sub failure {
+sub failure ($) {
     my $msg = shift;
     if ( $Foswiki::cfg{Contrib}{DatabaseContrib}{dieOnFailure} ) {
         die $msg;
@@ -148,10 +151,14 @@ sub find_mapping {
 # $access_type - one of the allow_* keys.
 my %map_inclusions = ( allow_query => 'allow_do', );
 
-sub access_allowed {
+sub db_access_allowed {
     my ( $conname, $section, $access_type, $user ) = @_;
 
+    #say STDERR "db_access_allowed(", join(",", @_), ")";
+
     unless ( defined $dbi_connections{$conname} ) {
+
+        #say STDERR "No $conname in connections";
         return 0 if failure "No connection $conname in the configuration";
     }
 
@@ -165,6 +172,8 @@ sub access_allowed {
     return 0 unless defined $connection->{$access_type};
 
     $user = Foswiki::Func::getWikiUserName() unless defined $user;
+
+    #say STDERR "Checking $user of $conname at $section";
 
     my $final_section =
       defined( $connection->{$access_type}{$section} ) ? $section : "default";
@@ -184,7 +193,7 @@ sub access_allowed {
     if ( !defined($match) && defined( $map_inclusions{$access_type} ) ) {
 
         # Check for higher level access map if feasible.
-        return access_allowed( $conname, $section,
+        return db_access_allowed( $conname, $section,
             $map_inclusions{$access_type}, $user );
     }
     return defined $match;
@@ -194,7 +203,7 @@ sub access_allowed {
 sub db_allowed {
     my ( $conname, $section ) = @_;
 
-    return access_allowed( $conname, $section, 'allow_do' );
+    return db_access_allowed( $conname, $section, 'allow_do' );
 }
 
 sub db_connect {
