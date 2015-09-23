@@ -1,5 +1,6 @@
 # See bottom of file for default license and copyright information
 use v5.16;
+
 package Foswiki::Contrib::DatabaseContrib;
 
 # Always use strict to enforce variable scoping
@@ -94,7 +95,8 @@ sub db_connected {
 
     my ($conname) = @_;
 
-    return ( defined $dbi_connections{$conname} && defined $dbi_connections{$conname}{dbh} );
+    return ( defined $dbi_connections{$conname}
+          && defined $dbi_connections{$conname}{dbh} );
 }
 
 sub db_set_codepage {
@@ -118,8 +120,8 @@ sub db_set_codepage {
 sub find_mapping {
     my ( $mappings, $user ) = @_;
 
-    $user = Foswiki::Func::getWikiUserName($user ? $user : ());
-    my $found   = 0;
+    $user = Foswiki::Func::getWikiUserName( $user ? $user : () );
+    my $found = 0;
     my $match;
     foreach my $entity (@$mappings) {
         $match = $entity;
@@ -129,8 +131,7 @@ sub find_mapping {
 
             # $entity is a group
             $found =
-              Foswiki::Func::isGroupMember( $entity, $user,
-                { expand => 1 } );
+              Foswiki::Func::isGroupMember( $entity, $user, { expand => 1 } );
         }
         else {
             $entity = Foswiki::Func::getWikiUserName($entity);
@@ -145,13 +146,12 @@ sub find_mapping {
 # $conname - connection name from the configutation
 # $section – page we're checking access for in form Web.Topic
 # $access_type - one of the allow_* keys.
-my %map_inclusions = (
-    allow_query => 'allow_do',
-);
+my %map_inclusions = ( allow_query => 'allow_do', );
+
 sub access_allowed {
     my ( $conname, $section, $access_type, $user ) = @_;
 
-    unless (defined $dbi_connections{$conname}) {
+    unless ( defined $dbi_connections{$conname} ) {
         return 0 if failure "No connection $conname in the configuration";
     }
 
@@ -166,29 +166,35 @@ sub access_allowed {
 
     $user = Foswiki::Func::getWikiUserName() unless defined $user;
 
-    my $final_section = defined( $connection->{$access_type}{$section} ) ? $section : "default";
+    my $final_section =
+      defined( $connection->{$access_type}{$section} ) ? $section : "default";
     my $allow_map =
-         defined( $connection->{$access_type}{$final_section} )
-         ? (ref( $connection->{$access_type}{$final_section} ) eq 'ARRAY'
-             ? $connection->{$access_type}{$final_section}
-             : [ ref($connection->{$access_type}{$final_section})
-                     ? ()
-                     : $connection->{$access_type}{$final_section} ])
-         : [];
-    my $match = find_mapping($allow_map, $user);
-    if (!defined($match) && defined($map_inclusions{$access_type})) {
+      defined( $connection->{$access_type}{$final_section} )
+      ? (
+        ref( $connection->{$access_type}{$final_section} ) eq 'ARRAY'
+        ? $connection->{$access_type}{$final_section}
+        : [
+            ref( $connection->{$access_type}{$final_section} )
+            ? ()
+            : $connection->{$access_type}{$final_section}
+        ]
+      )
+      : [];
+    my $match = find_mapping( $allow_map, $user );
+    if ( !defined($match) && defined( $map_inclusions{$access_type} ) ) {
+
         # Check for higher level access map if feasible.
-        return access_allowed($conname, $section, $map_inclusions{$access_type}, $user);
+        return access_allowed( $conname, $section,
+            $map_inclusions{$access_type}, $user );
     }
     return defined $match;
 }
 
 # db_allowed is deprecated and kept for compatibility matters only.
-sub db_allowed
-{
-    my ($conname, $section) = @_;
+sub db_allowed {
+    my ( $conname, $section ) = @_;
 
-    return access_allowed($conname, $section, 'allow_do');
+    return access_allowed( $conname, $section, 'allow_do' );
 }
 
 sub db_connect {
@@ -197,9 +203,10 @@ sub db_connect {
         $initialized = 1;
     }
 
-    my $conname         = shift;
-    unless (exists $dbi_connections{$conname}) {
-        return if failure "No connection `$conname' defined in the cofiguration";
+    my $conname = shift;
+    unless ( exists $dbi_connections{$conname} ) {
+        return
+          if failure "No connection `$conname' defined in the cofiguration";
     }
     my $connection      = $dbi_connections{$conname};
     my @required_fields = qw(database driver);
@@ -208,7 +215,8 @@ sub db_connect {
         foreach my $field (@required_fields) {
             unless ( defined $connection->{$field} ) {
                 return
-                  if failure "Required field $field is not defined for database connection $conname.\n";
+                  if failure
+"Required field $field is not defined for database connection $conname.\n";
             }
         }
     }
@@ -222,21 +230,23 @@ sub db_connect {
     my $access_allowed = exists $connection->{user};
 
     if ( defined( $connection->{usermap} ) ) {
-        # Individual mappings are checked first when it's about user->dbuser map.
+
+       # Individual mappings are checked first when it's about user->dbuser map.
         my @maps =
           sort { ( $a =~ /Group$/ ) <=> ( $b =~ /Group$/ ) }
           keys %{ $connection->{usermap} };
 
         my $usermap_key = find_mapping( \@maps );
         if ($usermap_key) {
-            $dbuser = $connection->{usermap}{$usermap_key}{user};
-            $dbpass = $connection->{usermap}{$usermap_key}{password};
+            $dbuser         = $connection->{usermap}{$usermap_key}{user};
+            $dbpass         = $connection->{usermap}{$usermap_key}{password};
             $access_allowed = 1;
         }
     }
 
     unless ($access_allowed) {
-        return if failure "User is not allowed to use database connection $conname";
+        return
+          if failure "User is not allowed to use database connection $conname";
     }
 
 # CONNECTING TO $conname, ", (defined $connection->{dbh} ? $connection->{dbh} : "*undef*"), ", ", (defined $dbi_connections{$conname}{dbh} ? $dbi_connections{$conname}{dbh} : "*undef*"), "\n";
@@ -293,7 +303,7 @@ sub db_connect {
 
 sub db_disconnect {
     my @connections = scalar(@_) > 0 ? @_ : keys %dbi_connections;
-    foreach my $conname ( @connections ) {
+    foreach my $conname (@connections) {
         if ( $dbi_connections{$conname}{dbh} ) {
             $dbi_connections{$conname}{dbh}->commit
               unless $dbi_connections{$conname}{dbh}{AutoCommit};
