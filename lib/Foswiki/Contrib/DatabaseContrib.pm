@@ -94,7 +94,7 @@ sub db_connected {
 
     my ($conname) = @_;
 
-    return ( defined $dbi_connections{$conname} ) ? 1 : 0;
+    return ( defined $dbi_connections{$conname} && defined $dbi_connections{$conname}{dbh} );
 }
 
 sub db_set_codepage {
@@ -133,7 +133,6 @@ sub find_mapping {
                 { expand => 1 } );
         }
         else {
-            # FIXME Potentially incorrect approach within Foswiki API.
             $entity = Foswiki::Func::getWikiUserName($entity);
             $found = ( $user eq $entity );
         }
@@ -293,7 +292,8 @@ sub db_connect {
 }
 
 sub db_disconnect {
-    foreach my $conname ( keys %dbi_connections ) {
+    my @connections = scalar(@_) > 0 ? @_ : keys %dbi_connections;
+    foreach my $conname ( @connections ) {
         if ( $dbi_connections{$conname}{dbh} ) {
             $dbi_connections{$conname}{dbh}->commit
               unless $dbi_connections{$conname}{dbh}{AutoCommit};
