@@ -1,3 +1,4 @@
+use v5.16;
 use strict;
 
 package DatabaseContribTests;
@@ -10,74 +11,12 @@ use Foswiki;
 use Foswiki::Func;
 use File::Temp;
 use Foswiki::Contrib::DatabaseContrib;
+use Data::Dumper;
 
 sub new {
     my $self = shift()->SUPER::new(@_);
     return $self;
 }
-
-#sub createGroup {
-#    my ( $this, $groupName, $members ) = @_;
-#    my $q = $this->{session}{request};
-#
-#    if (!defined($members)) {
-#        $members = '';
-#    } elsif (ref($memebers) eq 'ARRAY') {
-#        $members = join(",", @$members);
-#    }
-#
-#    my $params = {
-#        TopicName     => ['WikiGroups'],
-#        action        => ['addUserToGroup'],
-#        create          => 1,
-#        groupname       => $group,
-#        username        => $members,
-#    };
-#
-#    my $query = Unit::Request->new($params);
-#
-#    $query->path_info("/$this->{users_web}/$params->{TopicName}");
-#
-#    $this->createNewFoswikiSession( undef, $query );
-#    $this->assert( $this->{session}
-#          ->topicExists( $this->{test_web}, $Foswiki::cfg{WebPrefsTopicName} )
-#    );
-#
-#    $this->{session}->net->setMailHandler( \&FoswikiFnTestCase::sentMail );
-#    try {
-#        $this->captureWithKey(
-#            manage => \&Foswiki::UI::Manage::manage,
-#            $this->{session}
-#        );
-#    }
-#    catch Foswiki::OopsException with {
-#        my $e = shift;
-#        if ( $this->check_dependency('Foswiki,<,1.2') ) {
-#            $this->assert_str_equals( "attention", $e->{template},
-#                $e->stringify() );
-#            $this->assert_str_equals( "thanks", $e->{def}, $e->stringify() );
-#        }
-#        else {
-#            $this->assert_str_equals( "manage", $e->{template},
-#                $e->stringify() );
-#            $this->assert_str_equals( "thanks", $e->{def}, $e->stringify() );
-#        }
-#    }
-#    catch Foswiki::AccessControlException with {
-#        my $e = shift;
-#        $this->assert( 0, $e->stringify );
-#    }
-#    catch Error::Simple with {
-#        $this->assert( 0, shift->stringify() );
-#    }
-#    otherwise {
-#        $this->assert( 0, "expected an oops redirect" );
-#    };
-#
-#    # Reload caches
-#    $this->createNewFoswikiSession( undef, $q );
-#    $this->{session}->net->setMailHandler( \&FoswikiFnTestCase::sentMail );
-#}
 
 # Set up the test fixture
 sub set_up {
@@ -112,12 +51,13 @@ sub loadExtraConfig {
     $Foswiki::cfg{Extensions}{DatabaseContrib}{connections} = {
         message_board => {
             driver => 'Mock',
-            database => 'smaple_db',
+            database => 'sample_db',
             codepage => 'utf8',
             user => 'unmapped_user',
             password => 'unmapped_password',
             driver_attributes => {
-                sqline_unicode => 1,
+                mock_unicode => 1,
+                some_attribute => 'YES',
             },
             allow_do => {
                 default => [qw(AdminGroup)],
@@ -140,7 +80,26 @@ sub loadExtraConfig {
             },
             # host => 'localhost',
         },
+        sample_connection => {
+            driver => 'Mock',
+            database => 'sample_db',
+            codepage => 'utf8',
+            user => 'unmapped_user',
+            password => 'unmapped_password',
+            driver_attributes => {
+                some_attribute => 1,
+            },
+        },
     };
+}
+
+
+sub db_test_connect
+{
+    my ( $this, $conname ) = @_;
+    my $dbh = db_connect( $conname );
+    $this->assert_not_null( $dbh, "Failed: connection to $conname DB" );
+    return $dbh;
 }
 
 sub test_permissions
@@ -166,12 +125,12 @@ sub test_permissions
         },
         invalid => {
             allow_do => [
-                [qw(DummyGuest AnyWeb.AnyTopic), "A user anywhere outside his allowed zone"],
+                [qw(DummyGuest AnyWeb.AnyTopic), "A user anywhere outside his allowed zone is unallowed"],
                 [qw(JohnSmith Sandbox.QTestTopic), "Allowed for query, not for do-ing"],
             ],
             allow_query => [
                 ['DummyGuest', "$Foswiki::cfg{UsersWebName}.QSiteMessageBoard", "Variable expandsion for topic name is not supported"],
-                ['JohnSmith', '%USERSWEB%.QSiteMessageBoard', "Individual user not allowed for a topic"],
+                ['JohnSmith', "Sandbox.QDummyTopic", "Individual user not allowed for a topic"],
             ],
         },
     );
@@ -182,7 +141,7 @@ sub test_permissions
                 if ($bunch eq 'valid') {
                     $this->assert(
                         access_allowed('message_board', $test_pair->[1], $access_type, $test_pair->[0]),
-                        "$bunch $access_type for $test_pair->[0] on $test_pair->[1]: " . $test_pair->[2],
+                        "$bunch $access_type for $test_pair->[0] on $test_pair->[1] failed while has to conform the following rule: " . $test_pair->[2],
                     );
                 } else {
                     $this->assert(
@@ -200,16 +159,59 @@ sub test_connect
 {
     my $this = shift;
 
-    my $dbh;
-    $this->assert_not_null(
-        $dbh = db_connect( 'message_board' ),
-        'Failed: connection to message_board DB',
-    );
+    my $dbh = $this->db_test_connect( 'message_board' );
 
     $this->assert_null(
         $dbh = db_connect( 'non_existent' ),
         'Failed: connection to non_existent DB',
     );
+
+    db_disconnect;
+}
+
+sub test_connected
+{
+    my $this = shift;
+
+    # If a previous test fails it may leave a connection opened.
+    db_disconnect;
+
+    $this->assert(
+        !db_connected( 'message_board' ),
+        "DB must not be connected at this point."
+    );
+
+    $this->db_test_connect( 'message_board' );
+
+    $this->assert(
+        db_connected( 'message_board' ),
+        "DB must be in connected state now"
+    );
+
+    db_disconnect;
+}
+
+sub test_attributes
+{
+    my $this = shift;
+
+    my $dbh = $this->db_test_connect( 'message_board' );
+
+    $this->assert_str_equals( "YES", $dbh->{some_attribute}, "Expected some_attribute to be 'YES'" );
+
+    db_disconnect;
+
+    $Foswiki::cfg{Extensions}{DatabaseContrib}{connections}{message_board}{driver_attributes}{some_attribute} = 0;
+
+    # Reinitialize is needed because connection properties are being copied
+    # once in module life cycle.
+    Foswiki::Contrib::DatabaseContrib::init;
+
+    $dbh = $this->db_test_connect( 'message_board' );
+
+    $this->assert_num_equals( 0, $dbh->{some_attribute}, "Expected some_attribute to be 0" );
+
+    db_disconnect;
 }
 
 1;
