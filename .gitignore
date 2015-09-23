@@ -1,2 +1,7 @@
+DatabaseContrib.tgz
+DatabaseContrib.zip
+DatabaseContrib_installer
+DatabaseContrib_installer.pl
+test/unit/DatabaseContrib/testlogs/
 *.md5
 *.sha1
