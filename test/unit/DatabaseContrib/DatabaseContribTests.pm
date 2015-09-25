@@ -22,7 +22,11 @@ sub new {
 sub set_up {
     my $this = shift;
 
+    say STDERR "set_up";
+
     $this->SUPER::set_up();
+
+    say STDERR "Predefining users and groups";
 
     $this->registerUser( 'JohnSmith', 'Jogn', 'Smith',
         'webmaster@otoib.dp.ua' );
@@ -55,6 +59,8 @@ sub set_up {
         'Failed to create a new admin' );
     $this->assert( Foswiki::Func::addUserToGroup( 'ScumBag', 'AdminGroup', 0 ),
         'Failed to create a new admin' );
+
+    $this->assert( db_init, "DatabaseContrib init failed" );
 }
 
 sub tear_down {
@@ -64,6 +70,8 @@ sub tear_down {
 
 sub loadExtraConfig {
     my $this = shift;
+
+    say STDERR "loadExtraConfig";
 
     $this->SUPER::loadExtraConfig;
 
@@ -109,6 +117,7 @@ sub loadExtraConfig {
             user              => 'unmapped_user',
             password          => 'unmapped_password',
             driver_attributes => { some_attribute => 1, },
+            allow_do          => { "Sandbox.DoTestTopic" => [qw(TestGroup)], },
         },
     };
 }
@@ -225,8 +234,25 @@ sub test_permissions {
         }
     }
 
+    # Check access when no allow_query at all.
+    $this->assert(
+        db_access_allowed(
+            'sample_connection', 'Sandbox.DoTestTopic',
+            'allow_query',       'JohnSmith'
+        ),
+"Connection allowed for query when no `allow_query' but `allow_do' is there",
+    );
+    $this->assert(
+        !db_access_allowed(
+            'sample_connection', 'Sandbox.QDummyTopic',
+            'allow_query',       'JohnSmith'
+        ),
+"Connection no allowed for query when no `allow_query' but `allow_do' is there",
+    );
+
 }
 
+=pod
 sub test_connect {
     my $this = shift;
 
@@ -287,5 +313,18 @@ sub test_attributes {
 
     db_disconnect;
 }
+
+sub test_version
+{
+    my $this = shift;
+
+    my $required_ver = 1.01;
+
+    $this->assert(
+        $Foswiki::Contrib::DatabaseContrib::VERSION == $required_ver,
+        "Module version mismatch, expect $required_ver, got $Foswiki::Contrib::DatabaseContrib::VERSION "
+    );
+}
+=cut
 
 1;
