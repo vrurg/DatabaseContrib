@@ -59,11 +59,11 @@ our ( @ISA, @EXPORT );
 @EXPORT =
   qw( db_init db_connect db_disconnect db_connected db_access_allowed db_allowed );
 
-sub warning (@) {
+sub _warning (@) {
     return Foswiki::Func::writeWarning(@_);
 }
 
-sub failure ($) {
+sub _failure ($) {
     my $msg = shift;
     if ( $Foswiki::cfg{Contrib}{DatabaseContrib}{dieOnFailure} ) {
         die $msg;
@@ -73,7 +73,7 @@ sub failure ($) {
     }
 }
 
-sub check_init {
+sub _check_init {
     die
 "DatabaseContrib has not been initalized yet. Call db_init() before use please."
       unless $INIT_COMPLETE;
@@ -83,13 +83,13 @@ sub db_init {
 
     # check for Plugins.pm versions
     if ( $Foswiki::Plugins::VERSION < 0.77 ) {
-        warning "Version mismatch between DatabaseContrib.pm and Plugins.pm";
+        _warning "Version mismatch between DatabaseContrib.pm and Plugins.pm";
         return 0;
     }
 
     my $connections = $Foswiki::cfg{Extensions}{DatabaseContrib}{connections};
     unless ($connections) {
-        warning "No connections defined.";
+        _warning "No connections defined.";
         return 0;
     }
     %dbi_connections = %$connections;
@@ -99,7 +99,7 @@ sub db_init {
 }
 
 sub db_connected {
-    check_init;
+    _check_init;
 
     my ($conname) = @_;
 
@@ -125,10 +125,10 @@ sub _set_codepage {
 
 # Finds mapping of a user in a list of users or groups.
 # Returns matched entry from $allow_map list
-sub find_mapping {
+sub _find_mapping {
     my ( $mappings, $user ) = @_;
 
-#say STDERR "find_mapping(", join(",", map {$_ // '*undef*'} @_), ")";
+#say STDERR "_find_mapping(", join(",", map {$_ // '*undef*'} @_), ")";
 #say STDERR "Mappings list: [", join(",", map {$_ // '*undef*'} @$mappings), "]";
 
     $user = Foswiki::Func::getWikiUserName( $user ? $user : () );
@@ -164,7 +164,7 @@ sub find_mapping {
 my %map_inclusions = ( allow_query => 'allow_do', );
 
 sub db_access_allowed {
-    check_init;
+    _check_init;
     my ( $conname, $section, $access_type, $user ) = @_;
 
     #say STDERR "db_access_allowed(", join(",", map {$_ // '*undef*'} @_), ")";
@@ -172,7 +172,7 @@ sub db_access_allowed {
     unless ( defined $dbi_connections{$conname} ) {
 
         #say STDERR "No $conname in connections";
-        return 0 if failure "No connection $conname in the configuration";
+        return 0 if _failure "No connection $conname in the configuration";
     }
 
     my $connection = $dbi_connections{$conname};
@@ -210,7 +210,7 @@ sub db_access_allowed {
             ]
           )
           : [];
-        $match = find_mapping( $allow_map, $user );
+        $match = _find_mapping( $allow_map, $user );
 
         #say STDERR "Match result: ", $match // '*undef*';
     }
@@ -228,18 +228,18 @@ sub db_access_allowed {
 
 # db_allowed is deprecated and kept for compatibility matters only.
 sub db_allowed {
-    check_init;
+    _check_init;
     my ( $conname, $section ) = @_;
 
     return db_access_allowed( $conname, $section, 'allow_do' );
 }
 
 sub db_connect {
-    check_init;
+    _check_init;
     my $conname = shift;
     unless ( exists $dbi_connections{$conname} ) {
         return
-          if failure "No connection `$conname' defined in the cofiguration";
+          if _failure "No connection `$conname' defined in the cofiguration";
     }
     my $connection      = $dbi_connections{$conname};
     my @required_fields = qw(database driver);
@@ -248,7 +248,7 @@ sub db_connect {
         foreach my $field (@required_fields) {
             unless ( defined $connection->{$field} ) {
                 return
-                  if failure
+                  if _failure
 "Required field $field is not defined for database connection $conname.\n";
             }
         }
@@ -269,7 +269,7 @@ sub db_connect {
           sort { ( $a =~ /Group$/ ) <=> ( $b =~ /Group$/ ) }
           keys %{ $connection->{usermap} };
 
-        my $usermap_key = find_mapping( \@maps );
+        my $usermap_key = _find_mapping( \@maps );
         if ($usermap_key) {
             $dbuser         = $connection->{usermap}{$usermap_key}{user};
             $dbpass         = $connection->{usermap}{$usermap_key}{password};
@@ -279,7 +279,7 @@ sub db_connect {
 
     unless ($access_allowed) {
         return
-          if failure
+          if _failure
           "User/password are not defined for database connection $conname";
     }
 
@@ -336,7 +336,7 @@ sub db_connect {
 }
 
 sub db_disconnect {
-    check_init;
+    _check_init;
     my @connections = scalar(@_) > 0 ? @_ : keys %dbi_connections;
     foreach my $conname (@connections) {
         if ( $dbi_connections{$conname}{dbh} ) {
