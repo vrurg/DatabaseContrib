@@ -22,11 +22,11 @@ sub new {
 sub set_up {
     my $this = shift;
 
-    say STDERR "set_up";
+    #say STDERR "set_up";
 
     $this->SUPER::set_up();
 
-    say STDERR "Predefining users and groups";
+    #say STDERR "Predefining users and groups";
 
     $this->registerUser( 'JohnSmith', 'Jogn', 'Smith',
         'webmaster@otoib.dp.ua' );
@@ -71,7 +71,7 @@ sub tear_down {
 sub loadExtraConfig {
     my $this = shift;
 
-    say STDERR "loadExtraConfig";
+    #say STDERR "loadExtraConfig";
 
     $this->SUPER::loadExtraConfig;
 
@@ -138,6 +138,10 @@ sub test_permissions {
                 [
                     qw(ScumBag AnyWeb.AnyTopic),
                     "Admins are allowed anywhere by default"
+                ],
+                [
+                    qw(scum AnyWeb.AnyTopic),
+                    "Admin by his short login is allowed anywhere by default"
                 ],
                 [
                     qw(JohnSmith Sandbox.DoForSelected),
@@ -252,7 +256,6 @@ sub test_permissions {
 
 }
 
-=pod
 sub test_connect {
     my $this = shift;
 
@@ -301,7 +304,7 @@ sub test_attributes {
 
     # Reinitialize is needed because connection properties are being copied
     # once in module life cycle.
-    Foswiki::Contrib::DatabaseContrib::init;
+    db_init;
 
     $dbh = $this->db_test_connect('message_board');
 
@@ -325,6 +328,5 @@ sub test_version
         "Module version mismatch, expect $required_ver, got $Foswiki::Contrib::DatabaseContrib::VERSION "
     );
 }
-=cut
 
 1;
