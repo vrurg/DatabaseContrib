@@ -103,8 +103,8 @@ sub db_connected {
 
     my ($conname) = @_;
 
-    return ( defined $dbi_connections{$conname}
-          && defined $dbi_connections{$conname}{dbh} );
+    return undef unless defined $dbi_connections{$conname};
+    return defined $dbi_connections{$conname}{dbh};
 }
 
 sub _set_codepage {
