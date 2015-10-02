@@ -59,9 +59,7 @@ our ( @ISA, @EXPORT_OK, %EXPORT_TAGS );
 @EXPORT_OK =
   qw( db_init db_connect db_disconnect db_connected db_access_allowed db_allowed );
 
-%EXPORT_TAGS = (
-    all => [@EXPORT_OK],
-);
+%EXPORT_TAGS = ( all => [@EXPORT_OK], );
 
 sub _warning (@) {
     return Foswiki::Func::writeWarning(@_);
@@ -88,7 +86,9 @@ sub db_init {
     # check for Plugins.pm versions
     my $expectedVer = 0.77;
     if ( $Foswiki::Plugins::VERSION < $expectedVer ) {
-        _warning "Version mismatch between DatabaseContrib.pm and Plugins.pm (expecting: $expectedVer, get: " . $Foswiki::Plugins::VERSION . ")";
+        _warning
+"Version mismatch between DatabaseContrib.pm and Plugins.pm (expecting: $expectedVer, get: "
+          . $Foswiki::Plugins::VERSION . ")";
         return 0;
     }
 

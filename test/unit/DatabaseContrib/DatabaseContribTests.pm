@@ -317,15 +317,14 @@ sub test_attributes {
     db_disconnect;
 }
 
-sub test_version
-{
+sub test_version {
     my $this = shift;
 
     my $required_ver = 1.01;
 
     $this->assert(
         $Foswiki::Contrib::DatabaseContrib::VERSION == $required_ver,
-        "Module version mismatch, expect $required_ver, got $Foswiki::Contrib::DatabaseContrib::VERSION "
+"Module version mismatch, expect $required_ver, got $Foswiki::Contrib::DatabaseContrib::VERSION "
     );
 }
 
