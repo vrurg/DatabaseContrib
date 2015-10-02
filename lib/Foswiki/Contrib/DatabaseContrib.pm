@@ -53,11 +53,15 @@ our $SHORTDESCRIPTION =
   'Provides subroutines useful in writing plugins that access a SQL database.';
 
 use Exporter;
-our ( @ISA, @EXPORT );
+our ( @ISA, @EXPORT_OK, %EXPORT_TAGS );
 @ISA = qw( Exporter );
 
-@EXPORT =
+@EXPORT_OK =
   qw( db_init db_connect db_disconnect db_connected db_access_allowed db_allowed );
+
+%EXPORT_TAGS = (
+    all => [@EXPORT_OK],
+);
 
 sub _warning (@) {
     return Foswiki::Func::writeWarning(@_);
@@ -82,8 +86,9 @@ sub _check_init {
 sub db_init {
 
     # check for Plugins.pm versions
-    if ( $Foswiki::Plugins::VERSION < 0.77 ) {
-        _warning "Version mismatch between DatabaseContrib.pm and Plugins.pm";
+    my $expectedVer = 0.77;
+    if ( $Foswiki::Plugins::VERSION < $expectedVer ) {
+        _warning "Version mismatch between DatabaseContrib.pm and Plugins.pm (expecting: $expectedVer, get: " . $Foswiki::Plugins::VERSION . ")";
         return 0;
     }
 

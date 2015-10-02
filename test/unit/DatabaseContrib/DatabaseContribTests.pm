@@ -10,7 +10,7 @@ use strict;
 use Foswiki;
 use Foswiki::Func;
 use File::Temp;
-use Foswiki::Contrib::DatabaseContrib;
+use Foswiki::Contrib::DatabaseContrib qw(:all);
 use Data::Dumper;
 
 sub new {
