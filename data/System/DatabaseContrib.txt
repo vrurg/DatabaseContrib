@@ -24,9 +24,13 @@ This contrib is used among others, by Foswiki:Plugins.DBIQueryPlugin. The hope i
 
 ---++ Detailed Documentation
 
-This plugin has its origins in Foswiki:Plugins.DBIQueryPlugin. Additional capabilities have been migrated from other database connection mechanisms deployed in various TWiki plugins.
+This plugin has its origins in Foswiki:Plugins.DBIQueryPlugin. Additional
+capabilities have been migrated from other database connection mechanisms
+deployed in various TWiki plugins.
 
-This plugin uses the database independent access methods in CPAN:DBI to facilitate access to the SQL database. In the following =$dbh= refers to the database handle abstraction of CPAN:DBI.
+This plugin uses the database independent access methods in CPAN:DBI to
+facilitate access to the SQL database. In the following =$dbh= refers to
+the database handle abstraction of CPAN:DBI.
 
 ---+++ Conventions
 
@@ -38,8 +42,8 @@ The following conventions are used across this documentation:
 |  *Typical arguments or variables*  ||
 |=$dbname=|Database name defined in [[#DatabaseConfig][Database Definition]]|
 |=$dbh=|Database handle as used in =CPAN:DBI= documentation|
-|=$user=|Wiki user name. In most cases might be in any valid form: long, short or login name - unless otherwise specified in the documentation|
-|=$topic=|Wiki topic name. May or may not include web named part unless otherwise specified in the documentation|
+|=$user=|%WIKITOOLNAME% user name. In most cases might be in any valid form: long, short or login name - unless otherwise specified in the documentation|
+|=$topic=|%WIKITOOLNAME% topic name. May or may not include web named part unless otherwise specified in the documentation|
 
 #DbInit
 ---+++ =db_init ( )=
@@ -69,7 +73,7 @@ Verifies user's permissions of type =$access_type= for a database defined by =$d
 More about permissions read in [[#AccessControl][Access Control]].
 
 #DatabaseConfig
----++ Database Definition
+---++ Database Configuration
 
 The databases that one may connect to are defined through the =configure= script. The connection information is inserted in the =DatabaseContrib= section.
 
@@ -132,19 +136,19 @@ The following parameters can be used to specify a database. The first level key 
 
 Finding out if a user is permitted for an action might be somewhat tricky as there're three layers of control are involved:
 
-   1. On the top level Wiki checks user's permissions to read or modify a topic. This layer we better consider when deal with a plugin like DBIQueryPlugin. Still, we mention it here as it's a crucial part of the whole security issue.
+   1. On the top level %WIKITOOLNAME% checks user's permissions to read or modify a topic. This layer we better consider when deal with a plugin like DBIQueryPlugin. Still, we mention it here as it's a crucial part of the whole security issue.
    1. DatabaseContrib provides (but doesn't use) the middle layer check [[#AccessChecks][mechanism]] which can be used by a plugin or any other Perl code.
-      * The only kind of permission check performed by DatabaseContrib is control if the Wiki user can be mapped into a DB user by means of the [[#DatabaseConfig][database definition]] as described [[#Wiki2DBMap][below]].
-   1. Finally, the lowest layer is database server side permissions implied thru Wiki user to DB user mappings mentionted above.
+      * The only kind of permission check performed by DatabaseContrib is control if the %WIKITOOLNAME% user can be mapped into a DB user by means of the [[#DatabaseConfig][database definition]] as described [[#Wiki2DBMap][below]].
+   1. Finally, the lowest layer is database server side permissions implied thru %WIKITOOLNAME% user to DB user mappings mentionted above.
 
 #Wiki2DBMap
----++++ Wiki to database user mapping.
+---++++ %WIKITOOLNAME% to database user mapping.
  
 Mapping of Foswiki users into database server user accounts is done by means of the =usermap= key in the configuration setting (see [[#DatabaseConfig][Database definition]] above).
 The check is done using the following rules:
 
-   1. Check if Wiki user has an enty in =usermap=.
-   1. Check if Wiki user is a member of a group that has an entry in =usermap=.
+   1. Check if %WIKITOOLNAME% user has an enty in =usermap=.
+   1. Check if %WIKITOOLNAME% user is a member of a group that has an entry in =usermap=.
    1. Use =user= and =password= keys of the [[#Config][database definition]].
 
 =db_connect= fails if no valid mapping is found.
@@ -153,11 +157,11 @@ The check is done using the following rules:
 ---++++ Access checks.
 
 Access checks are performed by =db_access_allowed= subroutine. Checks are based upon special keys in a [[#DatabaseConfig][database definition]]. The keys are mapping topics into
-Wiki users and groups. A key is related to a kind of action allowed for a user if topic maps into this user or into a group this user belongs to. Key names are not predefined and
+%WIKITOOLNAME% users and groups. A key is related to a kind of action allowed for a user if topic maps into this user or into a group this user belongs to. Key names are not predefined and
 their meanings are specified by a plugin performing an access check.
 
 For example, DBIQueryPlugin relies upon =allow_do= and =allow_query= keys to determine if %<nop>DBI_DO% and %<nop>DBI_QUERY% are accessible by the user respectively.
-%T% Read DBIQueryPlugin documention to find out more about access checks.
+%T% Read DBIQueryPlugin documention to find out more about [[DBIQueryPlugin#AccessControl][access checks]].
 
 There are no special restrictions on access key names though except that they mist differ from the standard keys used by DatabaseContrib. Though it is highly recommended that name
 shall be prepended with =allow_= prefix as this way it will never get into a confilict with possible future development of this contrib.
@@ -176,7 +180,7 @@ In simple words it means that !WikiUser and memebers of !SomeGroup are allowed t
 No variable or macros expansion is done for the purpose of better readability and consequently for better control over permissions.
 
 Instead of a topic name special key =default= could be used to define permissions to topics not individually listed for a paticular =allow_= key. In the last example it means that !WikiUser is
-allowed for !SomeWeb.SomeTopic but not for !SomeWeb.SomeOtherTopic and not for any other topic of this Wiki unless he is a member of !MightGroup.
+allowed for !SomeWeb.SomeTopic but not for !SomeWeb.SomeOtherTopic and not for any other topic of this %WIKITOOLNAME% unless he is a member of !MightGroup.
 
 %X% It is important to remember that =default= key is used only and only when no individual entry for a topic is present in an =allow_= hash. What it means is that neither !SomeMightyUser nor
 members of !MightyGroup are allowed for !SomeWeb.SomeOtherTopic unless they're members of !SomeGroup. In real life I would suggest making life simplier for !AdminGroup by including it into the =default=
